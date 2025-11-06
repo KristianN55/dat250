@@ -30,10 +30,16 @@ from wtforms import (
     TextAreaField,
 )
 
+from flask import Flask
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = '69'
+
 # Defines all forms in the application, these will be instantiated by the template,
 # and the routes.py will read the values of the fields
 
 # TODO: Add validation, maybe use wtforms.validators??
+from wtforms.validators import DataRequired, EqualTo, Length
 
 # TODO: There was some important security feature that wtforms provides, but I don't remember what; implement it
 
@@ -52,11 +58,31 @@ class LoginForm(FlaskForm):
 class RegisterForm(FlaskForm):
     """Provides the registration form for the application."""
 
-    first_name = StringField(label="First Name", render_kw={"placeholder": "First Name"})
-    last_name = StringField(label="Last Name", render_kw={"placeholder": "Last Name"})
-    username = StringField(label="Username", render_kw={"placeholder": "Username"})
-    password = PasswordField(label="Password", render_kw={"placeholder": "Password"})
-    confirm_password = PasswordField(label="Confirm Password", render_kw={"placeholder": "Confirm Password"})
+    first_name = StringField(
+        label="First Name", 
+        render_kw={"placeholder": "First Name"},
+        validators=[DataRequired(), Length(min=3, max=20)]
+        )
+    last_name = StringField(
+        label="Last Name", 
+        render_kw={"placeholder": "Last Name"},
+        validators=[DataRequired(), Length(min=3, max=20)]                
+        )
+    username = StringField(
+        label="Username", 
+        render_kw={"placeholder": "Username"},
+        validators=[DataRequired(), Length(min=3, max=20)]
+        )
+    password = PasswordField(
+        label="Password", 
+        render_kw={"placeholder": "Password"},
+        validators=[DataRequired(), Length(min=8)]
+        )
+    confirm_password = PasswordField(
+        label="Confirm Password", 
+        render_kw={"placeholder": "Confirm Password"},
+        validators=[DataRequired(), EqualTo("password", message="Passwords must match")]
+        )
     submit = SubmitField(label="Sign Up")
 
 

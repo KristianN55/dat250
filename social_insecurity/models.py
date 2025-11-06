@@ -1,0 +1,24 @@
+from flask_login import UserMixin
+from social_insecurity.database import sqlite
+
+class User(UserMixin):
+    def __init__(self, id, username, password, first_name=None, last_name=None):
+        self.id = id
+        self.username = username
+        self.password = password
+        self.first_name = first_name
+        self.last_name = last_name
+
+    @classmethod
+    def get(cls, user_id):
+        query = "SELECT * FROM Users WHERE id = ?"
+        user_row = sqlite.query(query, [user_id], one=True)
+        if user_row:
+            return cls(
+                id=user_row["id"],
+                username=user_row["username"],
+                password=user_row["password"],
+                first_name=user_row.get("first_name"),
+                last_name=user_row.get("last_name"),
+            )
+        return None

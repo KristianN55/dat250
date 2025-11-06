@@ -18,10 +18,11 @@ from pathlib import Path
 from typing import Any, Optional, cast
 
 from flask import Flask, current_app, g
-
+import sqlite3
 
 class SQLite3:
-    """Provides a SQLite3 database extension for Flask.
+    def init_app(self, app, schema=None):
+        """Provides a SQLite3 database extension for Flask.
 
     This class provides a simple interface to the SQLite3 database.
     It also initializes the database if it does not exist yet.
@@ -110,6 +111,7 @@ class SQLite3:
         return conn
 
     def query(self, query: str, *args, one: bool = False) -> Any:
+
         """Queries the database and returns the result.'
 
         params:
@@ -139,3 +141,4 @@ class SQLite3:
         conn = cast(sqlite3.Connection, getattr(g, "flask_sqlite3_connection", None))
         if conn is not None:
             conn.close()
+sqlite = SQLite3()

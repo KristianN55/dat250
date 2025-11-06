@@ -6,46 +6,43 @@ It also contains the SQL queries used for communicating with the database.
 
 from pathlib import Path
 
+from flask import flash, redirect, render_template, url_for
 from flask import current_app as app
-from flask import flash, redirect, render_template, send_from_directory, url_for
-
 from social_insecurity import sqlite
+from social_insecurity.models import User
 from social_insecurity.forms import CommentsForm, FriendsForm, IndexForm, PostForm, ProfileForm
+from social_insecurity.database import sqlite
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import login_user, login_required, current_user, logout_user
 
 
 @app.route("/", methods=["GET", "POST"])
 @app.route("/index", methods=["GET", "POST"])
 def index():
-    """Provides the index page for the application.
+    """Provides the index page for the application."""
 
-    It reads the composite IndexForm and based on which form was submitted,
-    it either logs the user in or registers a new user.
-
-    If no form was submitted, it simply renders the index page.
-    """
     index_form = IndexForm()
     login_form = index_form.login
     register_form = index_form.register
 
+    # LOGIN
     if login_form.is_submitted() and login_form.submit.data:
-        get_user = f"""
-            SELECT *
-            FROM Users
-            WHERE username = '{login_form.username.data}';
-            """
-        user = sqlite.query(get_user, one=True)
+        get_user = "SELECT * FROM Users WHERE username = ?"
+        result = sqlite.query(get_user, [login_form.username.data], one=True)
+        user = result if result else None
 
         if user is None:
             flash("Sorry, this user does not exist!", category="warning")
-        elif user["password"] != login_form.password.data:
+        elif not check_password_hash(user["password"], login_form.password.data):
             flash("Sorry, wrong password!", category="warning")
-        elif user["password"] == login_form.password.data:
+        else:
             return redirect(url_for("stream", username=login_form.username.data))
 
-    elif register_form.is_submitted() and register_form.submit.data:
+    # REGISTER
+    elif register_form.validate_on_submit():
         insert_user = f"""
             INSERT INTO Users (username, first_name, last_name, password)
-            VALUES ('{register_form.username.data}', '{register_form.first_name.data}', '{register_form.last_name.data}', '{register_form.password.data}');
+            VALUES ('{register_form.username.data}', '{register_form.first_name.data}', '{register_form.last_name.data}', '{generate_password_hash(register_form.password.data)}');
             """
         sqlite.query(insert_user)
         flash("User successfully created!", category="success")
@@ -54,42 +51,43 @@ def index():
     return render_template("index.html.j2", title="Welcome", form=index_form)
 
 
-@app.route("/stream/<string:username>", methods=["GET", "POST"])
-def stream(username: str):
-    """Provides the stream page for the application.
+@app.route("/stream/", methods=["GET", "POST"])
+@login_required
+def stream():
+    """Provides the stream page for the logged-in user's stream."""
 
-    If a form was submitted, it reads the form data and inserts a new post into the database.
-
-    Otherwise, it reads the username from the URL and displays all posts from the user and their friends.
-    """
     post_form = PostForm()
-    get_user = f"""
-        SELECT *
-        FROM Users
-        WHERE username = '{username}';
-        """
-    user = sqlite.query(get_user, one=True)
+    user = current_user  # Flask-Login gives the logged-in user
 
-    if post_form.is_submitted():
+    # Handle new post submission
+    if post_form.validate_on_submit():
+        image_filename = None
         if post_form.image.data:
             path = Path(app.instance_path) / app.config["UPLOADS_FOLDER_PATH"] / post_form.image.data.filename
             post_form.image.data.save(path)
+            image_filename = post_form.image.data.filename
 
-        insert_post = f"""
+        insert_post = """
             INSERT INTO Posts (u_id, content, image, creation_time)
-            VALUES ({user["id"]}, '{post_form.content.data}', '{post_form.image.data.filename}', CURRENT_TIMESTAMP);
-            """
-        sqlite.query(insert_post)
-        return redirect(url_for("stream", username=username))
-
-    get_posts = f"""
-         SELECT p.*, u.*, (SELECT COUNT(*) FROM Comments WHERE p_id = p.id) AS cc
-         FROM Posts AS p JOIN Users AS u ON u.id = p.u_id
-         WHERE p.u_id IN (SELECT u_id FROM Friends WHERE f_id = {user["id"]}) OR p.u_id IN (SELECT f_id FROM Friends WHERE u_id = {user["id"]}) OR p.u_id = {user["id"]}
-         ORDER BY p.creation_time DESC;
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
         """
-    posts = sqlite.query(get_posts)
-    return render_template("stream.html.j2", title="Stream", username=username, form=post_form, posts=posts)
+        sqlite.query(insert_post, [user.id, post_form.content.data, image_filename])
+        return redirect(url_for("stream"))
+
+    # Fetch posts from user and friends
+    get_posts = """
+         SELECT p.*, u.*, 
+                (SELECT COUNT(*) FROM Comments WHERE p_id = p.id) AS cc
+         FROM Posts AS p
+         JOIN Users AS u ON u.id = p.u_id
+         WHERE p.u_id IN (SELECT u_id FROM Friends WHERE f_id = ?)
+            OR p.u_id IN (SELECT f_id FROM Friends WHERE u_id = ?)
+            OR p.u_id = ?
+         ORDER BY p.creation_time DESC
+    """
+    posts = sqlite.query(get_posts, [user.id, user.id, user.id])
+
+    return render_template("stream.html.j2", title="Stream", form=post_form, posts=posts)
 
 
 @app.route("/comments/<string:username>/<int:post_id>", methods=["GET", "POST"])
