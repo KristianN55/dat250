@@ -20,6 +20,8 @@ from typing import Any, Optional, cast
 from flask import Flask, current_app, g
 import sqlite3
 
+
+
 class SQLite3:
     def init_app(self, app, schema=None):
         """Provides a SQLite3 database extension for Flask.
@@ -40,6 +42,7 @@ class SQLite3:
         # db.query("INSERT INTO Users (name, email) VALUES ('John', 'test@test.net');")
     """
 
+
     def __init__(
         self,
         app: Optional[Flask] = None,
@@ -47,6 +50,8 @@ class SQLite3:
         path: Optional[PathLike | str] = None,
         schema: Optional[PathLike | str] = None,
     ) -> None:
+        
+        self._path: Optional[Path] = None
         """Initializes the extension.
 
         params:
@@ -65,6 +70,8 @@ class SQLite3:
         path: Optional[PathLike | str] = None,
         schema: Optional[PathLike | str] = None,
     ) -> None:
+        
+        
         """Initializes the extension.
 
         params:
@@ -110,23 +117,23 @@ class SQLite3:
             conn.row_factory = sqlite3.Row
         return conn
 
-    def query(self, query: str, *args, one: bool = False) -> Any:
+    def query(self, query: str, args: Any = None, one: bool = False) -> Any:
+    
+        if args is None:
+            args = ()
+        elif isinstance(args, (list, tuple)):
+            # Flatten if someone accidentally passes ((...),)
+            if len(args) == 1 and isinstance(args[0], (list, tuple)):
+                args = args[0]
+        else:
+            args = (args,)  # single non-sequence value
 
-        """Queries the database and returns the result.'
-
-        params:
-            query: The SQL query to execute.
-            one: Whether to return a single row or a list of rows.
-            args: Additional arguments to pass to the query.
-
-        returns: A single row, a list of rows or None.
-
-        """
         cursor = self.connection.execute(query, args)
         response = cursor.fetchone() if one else cursor.fetchall()
         cursor.close()
         self.connection.commit()
         return response
+
 
     # TODO: Add more specific query methods to simplify code
 

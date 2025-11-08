@@ -18,7 +18,7 @@ class User(UserMixin):
                 id=user_row["id"],
                 username=user_row["username"],
                 password=user_row["password"],
-                first_name=user_row.get("first_name"),
-                last_name=user_row.get("last_name"),
+                first_name=user_row["first_name"] if "first_name" in user_row.keys() else None,
+                last_name=user_row["last_name"] if "last_name" in user_row.keys() else None,
             )
         return None

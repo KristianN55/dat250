@@ -76,7 +76,7 @@ class RegisterForm(FlaskForm):
     password = PasswordField(
         label="Password", 
         render_kw={"placeholder": "Password"},
-        validators=[DataRequired(), Length(min=8)]
+        validators=[DataRequired(), Length(min=5)]
         )
     confirm_password = PasswordField(
         label="Confirm Password", 

@@ -7,18 +7,16 @@ from pathlib import Path
 from shutil import rmtree
 from typing import cast
 
-from flask import Flask, current_app
+from flask import Flask
 from flask_login import LoginManager
-
 from social_insecurity.config import Config
-from social_insecurity.database import SQLite3
-from social_insecurity.models import User
 from social_insecurity.database import sqlite
-
+from social_insecurity.models import User
+from pathlib import Path
+from typing import cast
 
 
 # Initialize extensions
-sqlite = SQLite3()
 login_manager = LoginManager()
 login_manager.login_view = "index"
 
@@ -52,8 +50,7 @@ def create_app(test_config=None) -> Flask:
     return app
 
 
-def create_uploads_folder(app: Flask) -> None:
-    """Create the instance and upload folders."""
+def create_uploads_folder(app):
+    """Ensure upload folder exists."""
     upload_path = Path(app.instance_path) / cast(str, app.config["UPLOADS_FOLDER_PATH"])
-    if not upload_path.exists():
-        upload_path.mkdir(parents=True)
+    upload_path.mkdir(parents=True, exist_ok=True)
