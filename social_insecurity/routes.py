@@ -6,14 +6,16 @@ It also contains the SQL queries used for communicating with the database.
 
 from pathlib import Path
 
-from flask import flash, redirect, render_template, url_for
+from flask import flash, redirect, render_template, url_for, send_from_directory, abort, current_app
 from flask import current_app as app
 from social_insecurity import sqlite
 from social_insecurity.models import User
 from social_insecurity.forms import CommentsForm, FriendsForm, IndexForm, PostForm, ProfileForm
 from social_insecurity.database import sqlite
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from flask_login import login_user, login_required, current_user, logout_user
+from markupsafe import escape
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -60,31 +62,49 @@ def index():
 
     return render_template("index.html.j2", title="Welcome", form=index_form)
 
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route("/stream", methods=["GET", "POST"])
 @login_required
 def stream():
-    """Provides the stream page for the logged-in user's stream."""
-
     post_form = PostForm()
-    user = current_user  # Flask-Login gives the logged-in user
+    user = current_user
 
-    # Handle new post submission
     if post_form.validate_on_submit():
         image_filename = None
         if post_form.image.data:
-            path = Path(app.instance_path) / app.config["UPLOADS_FOLDER_PATH"] / post_form.image.data.filename
-            post_form.image.data.save(path)
-            image_filename = post_form.image.data.filename
+            orig_name = post_form.image.data.filename or ""
+            if not allowed_file(orig_name):
+                # handle invalid extension - add error and re-render
+                post_form.image.errors.append("Invalid image type.")
+                return render_template("stream.html.j2", title="Stream", form=post_form, posts=[]) 
+
+            # secure the filename and give it a UUID
+            safe_base = secure_filename(orig_name)
+            ext = Path(safe_base).suffix or ""
+            unique_name = f"{uuid.uuid4().hex}{ext}"
+
+            upload_folder = Path(current_app.instance_path) / current_app.config["UPLOADS_FOLDER_PATH"]
+            upload_folder.mkdir(parents=True, exist_ok=True)
+            save_path = upload_folder / unique_name
+
+            post_form.image.data.save(save_path)
+            image_filename = unique_name
+
+        # escape content before storing (prevents accidental use of |safe later)
+        safe_content = escape(post_form.content.data)
 
         insert_post = """
             INSERT INTO Posts (u_id, content, image, creation_time)
             VALUES (?, ?, ?, CURRENT_TIMESTAMP)
         """
-        sqlite.query(insert_post, [user.id, post_form.content.data, image_filename])
+        sqlite.query(insert_post, [user.id, safe_content, image_filename])
         return redirect(url_for("stream"))
 
-    # Fetch posts from user and friends
+    # fetch posts
     get_posts = """
          SELECT p.*, u.*, 
                 (SELECT COUNT(*) FROM Comments WHERE p_id = p.id) AS cc
@@ -96,7 +116,6 @@ def stream():
          ORDER BY p.creation_time DESC
     """
     posts = sqlite.query(get_posts, [user.id, user.id, user.id])
-
     return render_template("stream.html.j2", title="Stream", form=post_form, posts=posts)
 
 
@@ -251,7 +270,11 @@ def profile(username):
     return render_template("profile.html.j2", title="Profile", user=user, form=profile_form, can_edit=can_edit)
 
 
-@app.route("/uploads/<string:filename>")
+@app.route("/uploads/<filename>")
+@login_required
 def uploads(filename):
-    """Provides an endpoint for serving uploaded files."""
-    return send_from_directory(Path(app.instance_path) / app.config["UPLOADS_FOLDER_PATH"], filename)
+    # only serve if filename matches secure_filename (prevents path traversal)
+    if secure_filename(filename) != filename:
+        abort(404)
+    upload_folder = Path(current_app.instance_path) / current_app.config["UPLOADS_FOLDER_PATH"]
+    return send_from_directory(upload_folder, filename)

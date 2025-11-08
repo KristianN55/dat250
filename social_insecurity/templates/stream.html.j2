@@ -18,23 +18,31 @@
     </div>
     <!-- Posts feed cards -->
     {% for post in posts %}
-      <div class="row justify-content-center">
-        <div class="col-sm-12 col-lg-6">
-          <div class="card mb-3">
-            <div class="card-header">
-              <div class="row align-items-center">
-                <a class="col-4" href={{ url_for('profile', username=post.username) }}><span class="fa fa-user me-1" aria-hidden="true"></span>{{ post.username }}</a>
-                <span class="col-8 text-right">{{ post.creation_time }}</span>
-              </div>
-            </div>
-            <div class="card-body">
-              <p class="card-text">{{ post.content }}</p>
-              {% if post.image %}<img src={{ url_for('uploads', filename=post.image) }} alt={{ post.image }} class="img-fluid mb-3">{% endif %}
-              <a href={{ url_for('comments', post_id=post.id) }}><span class="fa fa-comment me-1" aria-hidden="true"></span>Comments ({{ post.cc }})</a>
-            </div>
+  <div class="row justify-content-center">
+    <div class="col-sm-12 col-lg-6">
+      <div class="card mb-3">
+        <div class="card-header">
+          <div class="row align-items-center">
+            <a class="col-4" href="{{ url_for('profile', username=post.username) | e }}">
+              <span class="fa fa-user me-1" aria-hidden="true"></span>{{ post.username | e }}
+            </a>
+            <span class="col-8 text-right">{{ post.creation_time }}</span>
           </div>
         </div>
+        <div class="card-body">
+          <p class="card-text">{{ post.content }}</p>
+          {% if post.image %}
+            <img src="{{ url_for('uploads', filename=post.image) | e }}" 
+                 alt="{{ post.image | e }}" 
+                 class="img-fluid mb-3">
+          {% endif %}
+          <a href="{{ url_for('comments', post_id=post.id) | e }}">
+            <span class="fa fa-comment me-1" aria-hidden="true"></span>Comments ({{ post.cc }})
+          </a>
+        </div>
       </div>
-    {% endfor %}
+    </div>
+  </div>
+{% endfor %}
   </div>
 {% endblock content %}
