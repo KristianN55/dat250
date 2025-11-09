@@ -17,7 +17,7 @@ import os
 
 
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY") or str(os.urandom(32))  # TODO: Use this with wtforms
+    SECRET_KEY = os.environ.get("SECRET_KEY") or os.urandom(32)  # TODO: Use this with wtforms
     SQLITE3_DATABASE_PATH = "sqlite3.db"  # Path relative to the Flask instance folder
     UPLOADS_FOLDER_PATH = "uploads"  # Path relative to the Flask instance folder
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
