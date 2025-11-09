@@ -33,7 +33,7 @@ from wtforms import (
 from flask import Flask
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = '69'
+app.config['SECRET_KEY'] = str(os.urandom(32))
 
 # Defines all forms in the application, these will be instantiated by the template,
 # and the routes.py will read the values of the fields
