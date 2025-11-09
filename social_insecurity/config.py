@@ -21,5 +21,5 @@ class Config:
     SQLITE3_DATABASE_PATH = "sqlite3.db"  # Path relative to the Flask instance folder
     UPLOADS_FOLDER_PATH = "uploads"  # Path relative to the Flask instance folder
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-    WTF_CSRF_ENABLED = False  
+    WTF_CSRF_ENABLED = True
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB limit
